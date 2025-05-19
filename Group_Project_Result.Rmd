@@ -1,0 +1,344 @@
+---
+title: "Group_Project_Model_Result"
+author: "Melody Mao, Simon Zhang"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Group Project Model Result Analysis
+
+```{r, message=FALSE, warning=FALSE}
+# Install the package if it's not already installed
+if (!require(fDMA)) {
+  install.packages("fDMA")
+  library(fDMA)
+}
+
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("ggplot2")) install.packages("ggplot2")
+
+library(dplyr)
+library(ggplot2)
+
+# Install tidyr if it's not already installed
+if (!require(tidyr)) {
+  install.packages("tidyr")
+}
+
+# Load the tidyr package
+library(tidyr)
+
+
+
+```
+
+## Fama-French 5 Factor Model
+
+```{r, message=FALSE, warning=FALSE}
+# load ff_model into project
+ff_model_result <-
+  read.csv("ff-model-result.csv", header = TRUE)                   # Load the data
+```
+
+```{r, message=FALSE, warning=FALSE}
+cor.test(
+  ff_model_result$excess_return,
+  ff_model_result$predicted,
+  method = c("pearson", "kendall", "spearman")
+)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate MSE
+mean((ff_model_result$excess_return - ff_model_result$predicted)^2)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate MAE
+mean(abs(ff_model_result$excess_return - ff_model_result$predicted))
+```
+
+```{r, message=FALSE, warning=FALSE}
+hit.ratio(ff_model_result$excess_return, ff_model_result$predicted,d=NULL)
+```
+
+```{r}
+print(class(ff_model_result$date))
+```
+
+```{r, message=FALSE, warning=FALSE}
+# plot yearly data
+# Extract year from date and group by it
+yearly_data <- ff_model_result %>%
+  mutate(date = as.Date(date)) %>%
+  mutate(year = format(date, "%Y")) %>%
+  group_by(year) %>%
+  summarise(
+    observation = sum(excess_return),
+    prediction = sum(predicted)
+  )
+
+# Assuming yearly_data has been created as per your previous steps
+yearly_data_long <- yearly_data %>%
+  pivot_longer(
+    cols = c("observation", "prediction"),  # Specify the correct column names
+    names_to = "variable",
+    values_to = "total"
+  )
+
+
+# Plotting the data
+ggplot(yearly_data_long, aes(x = year, y = total, group = variable, color = variable)) +
+  geom_line() +  # Add line geometry
+  geom_point() +  # Optionally add points
+  labs(
+    x = "Year",
+    y = "Total Value",
+    title = "Yearly Sum of Values Over Time",
+    color = "Variable"
+  ) +
+  theme_minimal()  # Use a minimal theme
+
+
+```
+
+```{r}
+monthly_data_ff <- ff_model_result %>%
+  mutate(date = as.Date(date)) %>%
+  mutate(month = format(date, "%Y-%m")) %>%
+  group_by(month) %>%
+  summarise(
+    observation = mean(excess_return, na.rm = TRUE),
+    prediction = mean(predicted, na.rm = TRUE)
+  ) %>%
+  ungroup() # Ungrouping to ensure the data is no longer grouped for the plotting
+
+# Reshape the data for plotting
+monthly_data_ff_long <- monthly_data_ff %>%
+  pivot_longer(
+    cols = c("observation", "prediction"),  # Use correct column names
+    names_to = "variable",
+    values_to = "total"
+  )
+
+# Plotting the monthly data with lines and points
+ggplot(monthly_data_ff_long, aes(x = month, y = total, group = variable, color = variable)) +
+  geom_line() +  # Add line geometry
+  geom_point() +  # Optionally add points
+  labs(
+    x = "Month",
+    y = "Total Value",
+    title = "Monthly Average of Values Over Time",
+    color = "Variable"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Rotate the x-axis text to avoid overlap
+
+```
+
+## Random Forest
+
+```{r, message=FALSE, warning=FALSE}
+# load ff_model into project
+rf_model_result <-
+  read.csv("rf-model-result.csv", header = TRUE)   
+```
+
+```{r, message=FALSE, warning=FALSE}
+cor.test(
+  rf_model_result$excess_return,
+  rf_model_result$predicted,
+  method = c("pearson", "kendall", "spearman")
+)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate MSE
+mean((rf_model_result$excess_return - rf_model_result$predicted)^2)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate MAE
+mean(abs(rf_model_result$excess_return - rf_model_result$predicted))
+```
+
+```{r, message=FALSE, warning=FALSE}
+hit.ratio(rf_model_result$excess_return, rf_model_result$predicted,d=NULL)
+```
+
+```{r}
+
+# Assuming rf_model_result is your actual data frame with columns 'date', 'excess_return', and 'predicted'
+monthly_data_rf <- rf_model_result %>%
+  mutate(date = as.Date(date)) %>%
+  mutate(month = format(date, "%Y-%m")) %>%
+  group_by(month) %>%
+  summarise(
+    observation = mean(excess_return, na.rm = TRUE),
+    prediction = mean(predicted, na.rm = TRUE)
+  ) %>%
+  ungroup() # Ungrouping to ensure the data is no longer grouped for the plotting
+
+# Reshape the data for plotting
+monthly_data_rf_long <- monthly_data_rf %>%
+  pivot_longer(
+    cols = c("observation", "prediction"),  # Use correct column names
+    names_to = "variable",
+    values_to = "total"
+  )
+
+# Plotting the monthly data with lines and points
+ggplot(monthly_data_rf_long, aes(x = month, y = total, group = variable, color = variable)) +
+  geom_line() +  # Add line geometry
+  geom_point() +  # Optionally add points
+  labs(
+    x = "Month",
+    y = "Average",
+    title = "Monthly Average of Values Over Time",
+    color = "Variable"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Rotate the x-axis text to avoid overlap
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+# plot yearly data
+# Extract year from date and group by it
+yearly_data_rf <- rf_model_result %>%
+  mutate(date = as.Date(date)) %>%
+  mutate(year = format(date, "%Y")) %>%
+  group_by(year) %>%
+  summarise(
+    observation = sum(excess_return),
+    prediction = sum(predicted)
+  )
+
+# Assuming yearly_data has been created as per your previous steps
+yearly_data_rf_long <- yearly_data_rf %>%
+  pivot_longer(
+    cols = c("observation", "prediction"),  # Specify the correct column names
+    names_to = "variable",
+    values_to = "total"
+  )
+
+
+# Plotting the data
+ggplot(yearly_data_rf_long, aes(x = year, y = total, group = variable, color = variable)) +
+  geom_line() +  # Add line geometry
+  geom_point() +  # Optionally add points
+  labs(
+    x = "Year",
+    y = "Total Value",
+    title = "Yearly Sum of Values Over Time, Random Forest",
+    color = "Variable"
+  ) +
+  theme_minimal()  # Use a minimal theme
+
+```
+
+## Support Vector Regression
+
+```{r, message=FALSE, warning=FALSE}
+# load ff_model into project
+svr_model_result <-
+  read.csv("svr-model-result.csv", header = TRUE)                   # Load the data
+```
+
+```{r, message=FALSE, warning=FALSE}
+cor.test(
+  svr_model_result$excess_return,
+  svr_model_result$predicted,
+  method = c("pearson", "kendall", "spearman")
+)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate MSE
+mean((svr_model_result$excess_return - svr_model_result$predicted)^2)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Calculate MAE
+mean(abs(svr_model_result$excess_return - svr_model_result$predicted))
+```
+
+```{r, message=FALSE, warning=FALSE}
+hit.ratio(svr_model_result$excess_return, svr_model_result$predicted,d=NULL)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# plot yearly data
+# Extract year from date and group by it
+yearly_data_svr <- svr_model_result %>%
+  mutate(date = as.Date(date)) %>%
+  mutate(year = format(date, "%Y")) %>%
+  group_by(year) %>%
+  summarise(
+    observation = sum(excess_return),
+    prediction = sum(predicted)
+  )
+
+# Assuming yearly_data has been created as per your previous steps
+yearly_data_svr_long <- yearly_data_svr %>%
+  pivot_longer(
+    cols = c("observation", "prediction"),  # Specify the correct column names
+    names_to = "variable",
+    values_to = "total"
+  )
+
+
+# Plotting the data
+ggplot(yearly_data_svr_long, aes(x = year, y = total, group = variable, color = variable)) +
+  geom_line() +  # Add line geometry
+  geom_point() +  # Optionally add points
+  labs(
+    x = "Year",
+    y = "Total Value",
+    title = "Yearly Sum of Values Over Time",
+    color = "Variable"
+  ) +
+  theme_minimal()  # Use a minimal theme
+
+```
+
+```{r}
+monthly_data_svr <- svr_model_result %>%
+  mutate(date = as.Date(date)) %>%
+  mutate(month = format(date, "%Y-%m")) %>%
+  group_by(month) %>%
+  summarise(
+    observation = mean(excess_return, na.rm = TRUE),
+    prediction = mean(predicted, na.rm = TRUE)
+  ) %>%
+  ungroup() # Ungrouping to ensure the data is no longer grouped for the plotting
+
+# Reshape the data for plotting
+monthly_data_svr_long <- monthly_data_svr %>%
+  pivot_longer(
+    cols = c("observation", "prediction"),  # Use correct column names
+    names_to = "variable",
+    values_to = "total"
+  )
+
+# Plotting the monthly data with lines and points
+ggplot(monthly_data_svr_long, aes(x = month, y = total, group = variable, color = variable)) +
+  geom_line() +  # Add line geometry
+  geom_point() +  # Optionally add points
+  labs(
+    x = "Month",
+    y = "Average",
+    title = "Monthly Average of Values Over Time, SVR",
+    color = "Variable"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Rotate the x-axis text to avoid overlap
+
+```
